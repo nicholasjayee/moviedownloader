@@ -4,6 +4,7 @@ import {setupMovieSearch} from './movie-search.js';
 
 const $ = (selector) => document.querySelector(selector);
 let jobs = [];
+let queue = null;
 let filter = 'all';
 let limit = 50;
 let hasMore = false;
@@ -11,7 +12,7 @@ let pollTimer;
 let refreshVersion = 0;
 
 function render() {
-  renderQueue(jobs, filter, hasMore);
+  renderQueue(jobs, filter, hasMore, queue);
 }
 
 function showError(selector, message = '') {
@@ -26,6 +27,7 @@ async function refresh() {
     const result = await api(`/downloads?limit=${limit}`);
     if (version !== refreshVersion) return;
     jobs = result.downloads;
+    queue = result.queue;
     hasMore = jobs.length === limit && limit < 200;
     $('#connection').textContent = 'Local server connected';
     $('#connection').classList.add('online');

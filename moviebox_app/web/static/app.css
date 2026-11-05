@@ -575,6 +575,38 @@ footer span:last-child {
 .episode-picker { width: 100%; display: grid; gap: 10px; }
 .episode-picker label { margin: 0; }
 .episode-picker button { justify-self: start; }
+.episode-selection {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.episode-selection legend { padding: 0 5px; font-size: 12px; }
+.episode-selection-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.episode-selection-actions button { padding: 6px 8px; font-size: 11px; }
+.episode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.episode-option {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 5px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: white;
+}
+.episode-option:has(input:checked) { background: #e4e8de; border-color: #748870; }
+.episode-option input { width: 14px; height: 14px; min-height: 0; margin: 0; accent-color: var(--accent); }
+.episode-count { margin: 0; font-size: 12px; color: var(--muted); }
 .error-text { color: #963d2c; }
 .direct-download { margin-top: 20px; border-bottom: 1px solid var(--line); }
 .direct-download summary {
@@ -586,6 +618,8 @@ footer span:last-child {
 .direct-download-body { padding: 6px 0 24px; }
 @media (max-width: 500px) {
   .movie-results { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .movie-card:has(.episode-picker) { grid-column: 1 / -1; }
+  .movie-card:has(.episode-picker) .movie-poster { aspect-ratio: 16 / 9; }
   .movie-card-body { padding: 12px; }
   .movie-card h3 { font-size: 14px; }
   .movie-meta, .movie-genres { font-size: 11px; }

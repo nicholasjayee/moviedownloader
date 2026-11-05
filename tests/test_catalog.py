@@ -207,3 +207,81 @@ async def test_title_metadata_survives_reload_and_cache_expiry(settings):
         assert sources[0].quality == "480p"
     finally:
         await reopened.close()
+
+
+async def test_multiple_selected_episodes_are_sorted_and_queued_once(catalog_app, monkeypatch):
+    app, client, provider, service = catalog_app
+
+    async def transfer(*args):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(Transfer, "run", transfer)
+    await client.get("/api/movies/search?q=Example")
+    response = await client.post(
+        "/api/movies/2/download",
+        json={
+            "source_id": "video-1",
+            "season": 3,
+            "episodes": [3, 1, 3],
+        },
+    )
+    assert response.status_code == 201
+    jobs = response.json()["downloads"]
+    assert len(jobs) == 2
+    assert "S03E01" in jobs[0]["title"]
+    assert "S03E03" in jobs[1]["title"]
+    assert not any("E02" in job["title"] for job in jobs)
+    assert len((await client.get("/api/downloads")).json()["downloads"]) == 2
+
+
+@pytest.mark.parametrize(
+    "selection, expected",
+    [
+        ({"episodes": []}, 422),
+        ({"episodes": [0, 1]}, 422),
+        ({"episodes": [True]}, 422),
+        ({"episodes": [1.5]}, 422),
+        ({"episodes": ["1"]}, 422),
+        ({"episodes": [1, 4]}, 400),
+        ({"episodes": [1, 3], "episode": 2}, 422),
+        ({"episodes": [1], "all_episodes": True}, 422),
+        ({"episodes": [1], "season": 9}, 400),
+    ],
+)
+async def test_invalid_episode_selection_does_not_queue_partial_batch(
+    catalog_app, selection, expected
+):
+    app, client, provider, service = catalog_app
+    await client.get("/api/movies/search?q=Example")
+    body = {"source_id": "video-1", "season": 3, **selection}
+    response = await client.post("/api/movies/2/download", json=body)
+    assert response.status_code == expected
+    assert (await client.get("/api/downloads")).json()["downloads"] == []
+    assert provider.play_calls == 0
+
+
+async def test_season_capacity_failure_leaves_existing_downloads_untouched(
+    catalog_app, monkeypatch
+):
+    app, client, provider, service = catalog_app
+
+    async def transfer(*args):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(Transfer, "run", transfer)
+    await client.get("/api/movies/search?q=Example")
+    assert (
+        await client.post("/api/movies/1/download", json={"source_id": "video-0"})
+    ).status_code == 201
+    response = await client.post(
+        "/api/movies/2/download",
+        json={
+            "source_id": "video-1",
+            "season": 3,
+            "all_episodes": True,
+        },
+    )
+    assert response.status_code == 409
+    jobs = (await client.get("/api/downloads")).json()["downloads"]
+    assert len(jobs) == 1
+    assert "Example movie" in jobs[0]["title"]

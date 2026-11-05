@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class CatalogError(Exception):
@@ -27,9 +27,19 @@ class Season(BaseModel):
     episodes: int
 
 
+class Trailer(BaseModel):
+    url: str
+    poster: str = ""
+
+
 class MediaDetails(BaseModel):
     movie: Movie
     seasons: list[Season] = Field(default_factory=list)
+    description: str = ""
+    country: str = ""
+    release_date: str = ""
+    cast: list[str] = Field(default_factory=list)
+    trailer: Trailer | None = None
 
 
 class SearchPage(BaseModel):
@@ -54,3 +64,19 @@ class MovieDownloadRequest(BaseModel):
     season: int = Field(default=0, ge=0, le=1000)
     episode: int = Field(default=0, ge=0, le=10000)
     all_episodes: bool = False
+    episodes: list[Annotated[int, Field(strict=True, ge=1, le=10000)]] | None = Field(
+        default=None, min_length=1, max_length=1000
+    )
+
+    @field_validator("episodes")
+    @classmethod
+    def unique_episodes(cls, value: list[int] | None) -> list[int] | None:
+        return sorted(set(value)) if value is not None else None
+
+    @model_validator(mode="after")
+    def validate_selection(self):
+        if self.episodes is not None and self.all_episodes:
+            raise ValueError("Choose either specific episodes or the entire season.")
+        if self.episodes and self.episode and self.episode not in self.episodes:
+            raise ValueError("The preview episode must be one of the selected episodes.")
+        return self

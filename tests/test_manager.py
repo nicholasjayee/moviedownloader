@@ -115,3 +115,67 @@ async def test_recovery_marks_interrupted_jobs_failed(settings):
         assert "Retry" in restored.error
     finally:
         await service.close()
+
+
+async def test_multiple_downloads_fill_slots_and_waiting_jobs_advance(settings, monkeypatch):
+    settings.concurrency = 2
+    settings.max_queue = 4
+    service = DownloadManager(settings, DownloadRepository(settings.database_path))
+    started = asyncio.Queue()
+    gates = {}
+    active = set()
+    maximum = 0
+
+    async def transfer(self, job, checkpoint):
+        nonlocal maximum
+        gate = gates.setdefault(job.id, asyncio.Event())
+        active.add(job.id)
+        maximum = max(maximum, len(active))
+        await started.put(job.id)
+        try:
+            await gate.wait()
+        finally:
+            active.remove(job.id)
+
+    monkeypatch.setattr(Transfer, "run", transfer)
+    await service.start()
+    try:
+        jobs = await service.add_batch(
+            [
+                (DownloadRequest(url=f"https://example.org/{number}.mp4"), {}, {})
+                for number in range(4)
+            ]
+        )
+        first = await asyncio.wait_for(started.get(), 2)
+        second = await asyncio.wait_for(started.get(), 2)
+        assert service.summary() == {"downloading": 2, "queued": 2, "concurrency": 2}
+        assert first != second
+        first_task = service.tasks[first]
+        gates[first].set()
+        third = await asyncio.wait_for(started.get(), 2)
+        assert third not in {first, second}
+        await asyncio.wait_for(first_task, 2)
+        assert maximum == 2
+        gates[second].set()
+        gates[third].set()
+        fourth = await asyncio.wait_for(started.get(), 2)
+        gates[fourth].set()
+        await asyncio.wait_for(asyncio.gather(*list(service.tasks.values())), 2)
+        completed = [await service.get(job.id) for job in jobs]
+        assert all(job.status == Status.COMPLETED for job in completed)
+        assert service.summary() == {"downloading": 0, "queued": 0, "concurrency": 2}
+    finally:
+        await service.close()
+
+
+async def test_duplicate_entries_within_one_batch_are_rejected_before_saving(settings):
+    service = DownloadManager(settings, DownloadRepository(settings.database_path))
+    await service.start()
+    try:
+        entry = (DownloadRequest(url="https://example.org/one.mp4"), {}, {})
+        with pytest.raises(JobConflict, match="already"):
+            await service.add_batch([entry, entry])
+        assert await service.list(200, 0) == []
+        assert not service.tasks
+    finally:
+        await service.close()

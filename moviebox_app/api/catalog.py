@@ -6,6 +6,7 @@ from fastapi.responses import Response
 
 from moviebox_app.api.routes import Manager
 from moviebox_app.catalog.models import CatalogError, MovieDownloadRequest
+from moviebox_app.catalog.selection import selected_episodes
 from moviebox_app.catalog.service import CatalogService
 from moviebox_app.models import DownloadRequest
 from moviebox_app.storage.paths import source_name
@@ -93,20 +94,16 @@ async def movie_details(movie_id: str, service: Catalog):
 async def download_movie(
     movie_id: str, body: MovieDownloadRequest, service: Catalog, manager: Manager
 ):
-    details = await service.details_service.validate(movie_id, body.season, body.episode)
+    details = await service.details_service.get(movie_id)
+    episodes = selected_episodes(details, body)
     movie = details.movie
+    preview_episode = body.episode or episodes[0]
     sources = await service.sources(
-        movie.id, movie.detail_path, season=body.season, episode=body.episode
+        movie.id, movie.detail_path, season=body.season, episode=preview_episode
     )
     source = next((item for item in sources if item.id == body.source_id), None)
     if source is None:
         raise HTTPException(409, "This source is no longer available. Choose a quality again.")
-    episodes = [body.episode]
-    if body.all_episodes:
-        season = next((item for item in details.seasons if item.number == body.season), None)
-        if season is None:
-            raise HTTPException(400, "Choose a series season to download all episodes.")
-        episodes = list(range(1, season.episodes + 1))
     entries = []
     for episode in episodes:
         title = movie.title[:105] + (f" ({movie.year})" if movie.year else "")

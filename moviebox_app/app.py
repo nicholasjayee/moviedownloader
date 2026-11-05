@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from moviebox_app.api.catalog import router as catalog_router
+from moviebox_app.api.playback import router as playback_router
 from moviebox_app.api.routes import router
 from moviebox_app.api.security import RequestBoundary
 from moviebox_app.catalog.client import MovieboxClient
@@ -14,6 +15,7 @@ from moviebox_app.catalog.repository import TitleRepository
 from moviebox_app.catalog.service import CatalogService
 from moviebox_app.config import Settings
 from moviebox_app.downloads.manager import DownloadManager, JobConflict
+from moviebox_app.playback.service import PlaybackService
 from moviebox_app.storage.repository import DownloadRepository
 from moviebox_app.web import create_web_app
 
@@ -26,7 +28,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         client = MovieboxClient(settings)
         await client.open()
         titles = TitleRepository(settings.database_path)
+        playback = PlaybackService(settings)
         try:
+            await playback.open()
+            app.state.playback = playback
             await titles.open()
             catalog = CatalogService(client, titles)
             app.state.catalog = catalog
@@ -40,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             finally:
                 await service.close()
         finally:
+            await playback.close()
             await titles.close()
             await client.close()
 
@@ -71,5 +77,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(router)
     app.include_router(catalog_router)
+    app.include_router(playback_router)
     app.mount("/", WSGIMiddleware(create_web_app()))
     return app

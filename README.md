@@ -65,11 +65,35 @@ database directories are excluded from watching. Reloading stops active download
 use Retry to start them again after the server restarts.
 
 Search by title, select a movie or series, and choose an available quality. For
-series, choose a season and a single episode or **All episodes in this season**.
+each result, click the poster, title, or **Preview** to open its details. The modal
+shows the synopsis, year, rating, genres, country, cast, and series season counts
+when supplied by Moviebox. An available trailer plays in the modal; titles without
+one show an explicit unavailable message. Close with the button, Escape, or the
+backdrop. Closing stops active media and restores keyboard focus.
+
+Use **Watch movie** or choose a season and episode and click **Watch episode**
+to stream in the built-in player. Playback includes native seek, volume, and
+fullscreen controls, plus a quality selector. Changing quality keeps the playback
+position when possible. Watching does not create download jobs or write movie
+files to disk; the browser still receives and buffers video over the network.
+Playback uses a separate connection pool from downloads. Closing the modal stops
+the stream and releases its upstream connection. Available codecs and playback
+support depend on your browser and the provider's MP4 sources.
+
+The download controls remain available in both cards and the preview modal. For
+series, choose a season and check one or more episodes. **Select all** selects the
+entire season; **Clear** lets you start a new selection. Choose a quality and click
+**Download N episodes** or **Download entire season**.
 The app resolves the video URL and adds the selection to the download queue.
 Whole seasons are queued together or rejected together if the queue has too
 little capacity. Episodes without the chosen quality report a failure; the app
 does not silently substitute another episode or quality.
+You can add more movies or episode batches while others download. Three downloads
+run at once by default; the remaining jobs wait and start as slots become free.
+The queue shows the number downloading and waiting. Set `MOVIEBOX_CONCURRENCY`
+in `.env` (1–16) and restart the app to change the number of simultaneous downloads.
+Quality and size previews are for the first selected episode; other episode sizes
+and available qualities can differ.
 
 Files are saved in `downloads/`. **Save file** copies a completed download to your
 browser's chosen location; the original stays on the computer running the server.
@@ -125,6 +149,7 @@ moviebox_app/
   models.py                   # Job states and request validation
   api/
     catalog.py                # Search, details, episodes, sources, subtitle endpoints
+    playback.py               # Movie/episode watch endpoint and source selection
     routes.py                 # JSON endpoints and completed file delivery
     security.py               # Same-origin browser boundary and headers
   downloads/
@@ -136,10 +161,16 @@ moviebox_app/
     client.py                 # Async provider transport and guest-token lifecycle
     service.py                # Search, source resolution, expiring-link refresh
     details.py                # Movie detection and valid season/episode selection
+    selection.py              # Validate single, multiple, or whole-season selections
+    preview.py                # Optional synopsis, cast, and safe trailer metadata
     subtitles.py              # Subtitle discovery and bounded retrieval
     cache.py                  # Bounded TTL caches
     models.py                 # Catalog request/response models
     repository.py             # Persistent title metadata across reloads
+  playback/
+    service.py                # Streaming connections, headers, redirects, and cleanup
+    ranges.py                 # Validate upstream video ranges for seeking
+    response.py               # Release connections on completion or disconnect
   storage/
     paths.py                  # Safe names and unique file paths
     repository.py             # SQLite history and restart recovery
@@ -155,6 +186,10 @@ moviebox_app/
     static/episode-picker.js  # Season and episode selection
     static/source-picker.js   # Quality, download, and subtitle controls
     static/format.js          # Shared text rendering and byte formatting
+    static/download-actions.js # Shared card/modal download controls
+    static/movie-preview.js   # Accessible preview modal and metadata
+    static/watch-player.js    # Movie/episode playback and quality switching
+    static/preview.css        # Responsive modal and player styles
 tests/                        # API, queue, transfer, network, persistence tests
 ```
 
@@ -205,6 +240,7 @@ or retention policy is applied: remove old files manually when needed.
 | GET | `/api/health` | Server status |
 | GET | `/api/movies/search?q=Sintel&page=1` | Search movies and series |
 | GET | `/api/movies/{id}/details` | Title details and available seasons |
+| GET/HEAD | `/api/movies/{id}/watch?source_id=…&season=0&episode=0` | Stream a movie/episode, with HTTP Range support |
 | GET | `/api/movies/{id}/sources?season=0&episode=0` | MP4 qualities, sizes, and subtitle languages |
 | POST | `/api/movies/{id}/download` | Queue `{ "source_id": "…", "season": 0, "episode": 0, "all_episodes": false }` |
 | GET | `/api/movies/{id}/subtitles/{language}?season=0&episode=0` | Retrieve selected subtitles |
@@ -215,6 +251,19 @@ or retention policy is applied: remove old files manually when needed.
 | POST | `/api/downloads/{id}/retry` | Retry/resume failed or cancelled job |
 | GET | `/api/downloads/{id}/file` | Retrieve a completed file |
 | GET | `/openapi.json` | API schema |
+
+For selected episodes, send a sorted or unsorted `episodes` list with the season
+and a source previewed for the first episode, for example:
+
+```json
+{"source_id": "…", "season": 2, "episodes": [1, 3, 7]}
+```
+
+Duplicate episode numbers are queued once. Empty, non-integer, or out-of-range
+episode selections are rejected before any jobs are added. To queue a whole
+season, use `"all_episodes": true` without `episodes`. The single `episode` field
+remains supported for one-episode requests. `/api/downloads` also returns a `queue`
+summary with `downloading`, `queued`, and `concurrency` counts.
 
 The Flask app is mounted after the API using
 [`a2wsgi`, as documented by FastAPI](https://fastapi.tiangolo.com/advanced/wsgi/).
@@ -237,6 +286,12 @@ size limits, unsafe redirects and DNS, queue capacity, cancellation, retry,
 restart recovery, source-URL redaction, file retrieval, and browser boundaries.
 Catalog tests also cover guest-token refresh, persisted titles after reload,
 movie/series detection, valid episodes, whole-season queue capacity, and subtitles.
+Playback tests cover range and suffix requests, HEAD, invalid upstream responses,
+private redirects, no download files/jobs, and cleanup when a browser disconnects.
+Browser verification also covers trailer playback, movie and episode streaming,
+seeking, quality switching, modal downloads, focus restoration, close cleanup,
+and mobile layout. Live Sintel playback was checked at 360p with a seek to
+30 seconds; it created no download jobs or local movie files.
 
 Manual verification on Python 3.14 included Chrome desktop/mobile searches,
 movie quality selection, series season 2 episode 7, and subtitle controls. A real

@@ -37,6 +37,7 @@ class RequestBoundary:
                         b"content-security-policy",
                         b"default-src 'self'; style-src 'self'; "
                         b"script-src 'self'; connect-src 'self'; img-src 'self' data: https:; "
+                        b"media-src 'self' https:; "
                         b"frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
                     ),
                 ]

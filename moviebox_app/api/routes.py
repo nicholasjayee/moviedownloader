@@ -27,7 +27,7 @@ async def list_downloads(
     service: Manager, limit: int = Query(200, ge=1, le=200), offset: int = Query(0, ge=0)
 ):
     jobs = await service.list(limit, offset)
-    return {"downloads": [job.public() for job in jobs]}
+    return {"downloads": [job.public() for job in jobs], "queue": service.summary()}
 
 
 @router.post("/downloads", status_code=201)

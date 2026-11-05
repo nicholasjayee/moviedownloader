@@ -1,0 +1,81 @@
+body.preview-open { overflow: hidden; }
+.movie-poster { display: block; width: 100%; padding: 0; border: 0; border-radius: 0; cursor: pointer; }
+.movie-title-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  line-height: inherit;
+}
+.movie-title-button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.preview-button { margin-bottom: 12px; }
+.movie-preview {
+  width: min(940px, calc(100% - 40px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f4f3ef;
+  color: inherit;
+  overflow-y: auto;
+  box-shadow: 0 20px 80px #0004;
+}
+.movie-preview::backdrop { background: #151b16b8; }
+.preview-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 26px;
+  background: #f4f3ef;
+  border-bottom: 1px solid var(--line);
+}
+.preview-header h2 { font-size: 22px; line-height: 1.3; letter-spacing: -.6px; }
+.preview-close {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+}
+.preview-close:hover { background: #e4e8de; }
+.preview-body { padding: 26px; }
+.preview-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 28px; align-items: start; }
+.preview-poster { aspect-ratio: 2 / 3; background: #e2e5db; border-radius: 5px; overflow: hidden; }
+.preview-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.preview-information { min-width: 0; }
+.preview-metadata, .preview-genres, .preview-cast, .preview-seasons {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0 0 12px;
+}
+.preview-genres { color: var(--accent); }
+.preview-body h3 { font-size: 15px; font-weight: 500; margin: 22px 0 10px; }
+.preview-synopsis { font-size: 14px; line-height: 1.8; margin: 0 0 18px; white-space: pre-line; overflow-wrap: anywhere; }
+.preview-download { border-top: 1px solid var(--line); margin-top: 22px; }
+.preview-download .episode-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); }
+.preview-download .quality-select { max-width: 100%; }
+.preview-trailer { border-top: 1px solid var(--line); margin-top: 26px; }
+.preview-video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 5px; background: #171b17; }
+.preview-loading { min-height: 130px; font-size: 14px; color: var(--muted); }
+.watch-section { border-top: 1px solid var(--line); margin-top: 26px; }
+.watch-selectors { display: flex; flex-wrap: wrap; gap: 12px; }
+.watch-selectors label { min-width: 130px; flex: 1; }
+.watch-selectors select, .watch-quality select { margin-top: 7px; }
+.watch-quality { display: inline-block; margin: 0 0 0 15px; min-width: 100px; vertical-align: middle; }
+.watch-video { margin-top: 16px; }
+@media (max-width: 600px) {
+  .movie-preview { width: calc(100% - 20px); max-height: calc(100dvh - 24px); }
+  .preview-header { padding: 16px; align-items: start; }
+  .preview-header h2 { font-size: 20px; }
+  .preview-body { padding: 18px; }
+  .preview-layout { grid-template-columns: 1fr; gap: 20px; }
+  .preview-poster { width: min(160px, 50%); }
+}

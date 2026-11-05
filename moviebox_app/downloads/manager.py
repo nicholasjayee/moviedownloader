@@ -6,6 +6,7 @@ from uuid import uuid4
 import aiohttp
 
 from moviebox_app.config import Settings
+from moviebox_app.downloads.identity import source_key
 from moviebox_app.downloads.network import PublicResolver, validate_url
 from moviebox_app.downloads.transfer import Transfer, TransferError
 from moviebox_app.models import Download, DownloadRequest, Status
@@ -84,13 +85,15 @@ class DownloadManager:
         self.tasks[job.id] = asyncio.create_task(self.run(job), name=f"download-{job.id}")
 
     def duplicate(self, url: str, provider: dict[str, str]) -> bool:
-        keys = ("movie_id", "season", "episode", "quality")
-        return any(
-            all(job.provider.get(key) == provider.get(key) for key in keys)
-            if provider and job.provider
-            else job.url == url
-            for job in self.jobs.values()
-        )
+        key = source_key(url, provider)
+        return any(source_key(job.url, job.provider) == key for job in self.jobs.values())
+
+    def summary(self) -> dict[str, int]:
+        return {
+            "downloading": sum(job.status == Status.DOWNLOADING for job in self.jobs.values()),
+            "queued": sum(job.status == Status.QUEUED for job in self.jobs.values()),
+            "concurrency": self.settings.concurrency,
+        }
 
     async def add(
         self,
@@ -108,11 +111,14 @@ class DownloadManager:
                     "Download queue is full. Wait for space before adding these downloads."
                 )
             jobs = []
+            seen = {source_key(job.url, job.provider) for job in self.jobs.values()}
             for request, headers, provider in entries:
                 url = str(request.url)
                 validate_url(url)
-                if self.duplicate(url, provider):
+                key = source_key(url, provider)
+                if key in seen:
                     raise JobConflict("This title or URL is already queued or downloading.")
+                seen.add(key)
                 title, filename = source_name(url, request.title)
                 jobs.append(
                     Download(

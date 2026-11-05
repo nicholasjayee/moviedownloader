@@ -1,11 +1,14 @@
-import {api} from './api.js';
 import {element} from './format.js';
-import {episodePicker} from './episode-picker.js';
-import {showSources} from './source-picker.js';
+import {downloadActions} from './download-actions.js';
+import {openMoviePreview} from './movie-preview.js';
 
 export function movieCard(movie, onQueued) {
   const card = element('article', 'movie-card');
-  const poster = element('div', 'movie-poster');
+  const poster = element('button', 'movie-poster');
+  poster.type = 'button';
+  poster.setAttribute('aria-label', `Preview ${movie.title}`);
+  poster.setAttribute('aria-haspopup', 'dialog');
+  poster.addEventListener('click', () => openMoviePreview(movie, onQueued, poster));
   if (movie.poster.startsWith('https://')) {
     const image = element('img');
     image.src = movie.poster;
@@ -16,46 +19,23 @@ export function movieCard(movie, onQueued) {
   }
   card.append(poster);
   const content = element('div', 'movie-card-body');
-  content.append(element('h3', '', movie.title));
+  const heading = element('h3');
+  const title = element('button', 'movie-title-button', movie.title);
+  title.type = 'button';
+  title.setAttribute('aria-haspopup', 'dialog');
+  title.addEventListener('click', () => openMoviePreview(movie, onQueued, title));
+  heading.append(title);
+  content.append(heading);
   const details = [movie.kind === 'series' ? 'Series' : 'Movie', movie.year,
     movie.rating ? `IMDb ${movie.rating}` : ''].filter(Boolean);
   content.append(element('p', 'movie-meta', details.join(' · ')));
   if (movie.genres) content.append(element('p', 'movie-genres', movie.genres));
-  const controls = element('div', 'movie-controls');
-  const choose = element('button', 'secondary', movie.kind === 'series' ? 'Choose episode' : 'Choose quality');
-  choose.type = 'button';
-  choose.setAttribute('aria-label', `Choose quality for ${movie.title}`);
-  const message = element('p', 'movie-message');
-  message.setAttribute('role', 'status');
-  async function sources(selection, output) {
-    try { await showSources(movie, selection, output, message, onQueued); }
-    catch (error) {
-      message.textContent = error.message;
-      message.classList.add('error-text');
-    }
-  }
-  choose.addEventListener('click', async () => {
-    choose.disabled = true;
-    choose.textContent = 'Finding sources…';
-    message.textContent = '';
-    try {
-      const result = await api(`/movies/${encodeURIComponent(movie.id)}/details`);
-      if (result.movie.kind === 'series') {
-        controls.replaceChildren(episodePicker(movie, result.seasons, sources));
-        message.textContent = 'Choose a season and episode, then a quality.';
-      } else {
-        await sources({season: 0, episode: 0, all_episodes: false}, controls);
-      }
-    } catch (error) {
-      message.textContent = error.message;
-      message.classList.add('error-text');
-      choose.textContent = 'Try again';
-    } finally {
-      choose.disabled = false;
-    }
-  });
-  controls.append(choose);
-  content.append(controls, message);
+  const preview = element('button', 'secondary preview-button', 'Preview');
+  preview.type = 'button';
+  preview.setAttribute('aria-label', `View details for ${movie.title}`);
+  preview.setAttribute('aria-haspopup', 'dialog');
+  preview.addEventListener('click', () => openMoviePreview(movie, onQueued, preview));
+  content.append(preview, downloadActions(movie, onQueued));
   card.append(content);
   return card;
 }

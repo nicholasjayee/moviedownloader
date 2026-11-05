@@ -11,11 +11,14 @@ function action(label, job, kind) {
   return button;
 }
 
-export function renderQueue(jobs, filter, hasMore) {
+export function renderQueue(jobs, filter, hasMore, queue = null) {
   const search = $('#search').value.toLocaleLowerCase();
   const active = jobs.filter((job) => ['queued', 'downloading'].includes(job.status));
   $('#count').textContent = jobs.length + (hasMore ? '+' : '');
-  $('#activity').textContent = active.length ? `${active.length} queued or downloading` : 'No active downloads';
+  $('#activity').textContent = queue ?
+    `${queue.downloading} downloading · ${queue.queued} waiting` :
+    active.length ? `${active.length} queued or downloading` : 'No active downloads';
+  $('#activity').title = queue ? `Up to ${queue.concurrency} downloads at once` : '';
   const visible = jobs.filter((job) => {
     const matches = filter === 'all' || (filter === 'active' && active.includes(job)) ||
       (filter === 'failed' && ['failed', 'cancelled'].includes(job.status)) || job.status === filter;

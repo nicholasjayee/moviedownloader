@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 from moviebox_app.catalog.cache import Cache
 from moviebox_app.catalog.client import MovieboxClient
 from moviebox_app.catalog.models import CatalogError, MediaDetails, Movie, Season
+from moviebox_app.catalog.preview import cast_names, public_media_url, trailer_from_subject
 
 
 class DetailsService:
@@ -29,7 +30,34 @@ class DetailsService:
                 seasons.append(Season(number=number, episodes=episodes))
         # Movie responses may include dummy seasons with zero episodes.
         kind = "series" if seasons else "movie"
-        result = MediaDetails(movie=movie.model_copy(update={"kind": kind}), seasons=seasons)
+        subject = data.get("subject") or {}
+        if not isinstance(subject, dict):
+            subject = {}
+        updates = {"kind": kind}
+        for field, value in {
+            "title": subject.get("title"),
+            "year": str(subject.get("releaseDate") or "")[:4],
+            "genres": subject.get("genre"),
+            "rating": str(subject.get("imdbRatingValue") or ""),
+            "poster": public_media_url((subject.get("cover") or {}).get("url"))
+            if isinstance(subject.get("cover"), dict)
+            else "",
+        }.items():
+            if isinstance(value, str) and value:
+                updates[field] = value
+        result = MediaDetails(
+            movie=movie.model_copy(update=updates),
+            seasons=seasons,
+            description=subject.get("description")
+            if isinstance(subject.get("description"), str)
+            else "",
+            country=subject.get("countryName")
+            if isinstance(subject.get("countryName"), str)
+            else "",
+            release_date=str(subject.get("releaseDate") or ""),
+            cast=cast_names(data.get("stars")),
+            trailer=trailer_from_subject(subject),
+        )
         self.cache.put(movie_id, result)
         return result
 
