@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f3ef">
+  <title>Moviebox — Downloads</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script type="module" src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="/" aria-label="Moviebox home"><span class="mark" aria-hidden="true">m.</span> moviebox</a>
+    <span class="connection" id="connection" role="status">Connecting…</span>
+  </header>
+  <main>
+    <div class="page-heading"><div><p class="eyebrow">YOUR LOCAL LIBRARY</p><h1>Movies<span>.</span></h1></div><span class="page-number" aria-hidden="true">01 /</span></div>
+    <section class="composer" aria-labelledby="movie-search-heading">
+      <div class="composer-heading">
+        <h2 id="movie-search-heading">Find a movie or series</h2><span>MOVIEBOX SEARCH</span>
+      </div>
+      <form id="movie-search-form">
+        <div class="fields">
+          <div class="field source-field">
+            <label for="movie-query">Title</label>
+            <input id="movie-query" type="search" placeholder="Search movies and series…" required maxlength="160" autocomplete="off">
+          </div>
+          <button class="primary" id="movie-search-submit" type="submit">Search <span aria-hidden="true">↗</span></button>
+        </div>
+        <p class="hint">Search Moviebox, choose a title and quality, then add it to your queue.</p>
+      </form>
+      <p id="movie-search-error" class="error" role="alert" hidden></p>
+      <p id="movie-search-status" class="hint" role="status" aria-live="polite"></p>
+      <div id="movie-results" class="movie-results" aria-label="Movie search results"></div>
+      <button class="secondary load-more" id="more-movies" type="button" hidden>More results</button>
+    </section>
+    <details class="direct-download">
+      <summary>Add a movie by URL</summary>
+      <div class="direct-download-body">
+      <form id="download-form">
+        <div class="fields">
+          <div class="field source-field"><label for="url">Movie URL</label><input id="url" name="url" type="url" placeholder="https://example.org/movie.mp4" required maxlength="8192" autocomplete="off" spellcheck="false"></div>
+          <div class="field"><label for="title">Title <span>optional</span></label><input id="title" name="title" type="text" placeholder="A name for your library" maxlength="160"></div>
+          <button class="primary" id="submit" type="submit">Add download <span aria-hidden="true">↗</span></button>
+        </div>
+        <p class="hint">Paste a direct MP4, MKV, WebM, or other video-file link you have permission to download.</p>
+        <p id="form-error" class="error" role="alert" hidden></p>
+      </form>
+      </div>
+    </details>
+    <section class="library" aria-labelledby="queue-heading">
+      <div class="library-heading"><h2 id="queue-heading">Your queue <span id="count">0</span></h2><span id="activity">No active downloads</span></div>
+      <div class="toolbar">
+        <div class="filters" role="group" aria-label="Filter downloads">
+          <button class="filter selected" data-filter="all" aria-pressed="true">All</button>
+          <button class="filter" data-filter="active" aria-pressed="false">In progress</button>
+          <button class="filter" data-filter="completed" aria-pressed="false">Completed</button>
+          <button class="filter" data-filter="failed" aria-pressed="false">Needs attention</button>
+        </div>
+        <label class="search-label"><span class="sr-only">Search loaded downloads</span><input type="search" id="search" placeholder="Find a download…"></label>
+      </div>
+      <p id="action-error" class="error" role="alert" hidden></p>
+      <div id="downloads" aria-label="Downloads"></div>
+      <div id="empty" class="empty"><span class="empty-symbol" aria-hidden="true">↓</span><h3>Room for your next movie.</h3><p>Search for a movie above and choose a quality to start downloading.</p></div>
+      <button id="load-more" class="secondary load-more" hidden>Load older downloads</button>
+    </section>
+    <footer><span>Files stay on the computer running Moviebox.</span><span>MOVIEBOX</span></footer>
+  </main>
+</body>
+</html>
